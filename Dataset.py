@@ -6,29 +6,30 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-train_transform = transforms.Compose([
-    transforms.ColorJitter(
-        brightness=0.2,
-        contrast=0.2,
-        saturation=0.2,
-        hue=0.1
-    ),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=(0.485, 0.456, 0.406),
-        std=(0.229, 0.224, 0.225),
-    ),
-])
+# Аугментации которые будут применены в этой задаче
+# train_transform = transforms.Compose([
+#     transforms.ColorJitter(
+#         brightness=0.2,
+#         contrast=0.2,
+#         saturation=0.2,
+#         hue=0.1
+#     ),
+#     transforms.ToTensor(),
+#     transforms.Normalize(
+#         mean=(0.485, 0.456, 0.406),
+#         std=(0.229, 0.224, 0.225),
+#     ),
+# ])
+#
+# val_transform = transforms.Compose([
+#     transforms.ToTensor(),
+#     transforms.Normalize(
+#         mean=(0.485, 0.456, 0.406),
+#         std=(0.229, 0.224, 0.225),
+#     ),
+# ])
 
-val_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=(0.485, 0.456, 0.406),
-        std=(0.229, 0.224, 0.225),
-    ),
-])
-
-
+# Датасет основная идея заранее разметить и сохранить в json bboxы в файле preproces_mult и затем уже в этом классе просто читать их и отдавать вместе с картинкой и координатами лицевых точек
 class Point_face(Dataset):
     def __init__(self, meta_path_or_dict, transform=None):
         super(Point_face, self).__init__()
@@ -68,6 +69,6 @@ class Point_face(Dataset):
             img_tensor = transforms.ToTensor()(img_resized)
 
         return {"image": img_tensor, "label": landmarks_tensor,
-                "orig_bbox": torch.tensor([x1, y1, x2, y2], dtype=torch.float32),
-                "crop_shape": torch.tensor([crop_w, crop_h], dtype=torch.float32)
+                "orig_bbox": torch.tensor([x1, y1, x2, y2], dtype=torch.float32),# упрощает валидацию
+                "crop_shape": torch.tensor([crop_w, crop_h], dtype=torch.float32)# упрощает валидацию в обучении не нужны
                 }

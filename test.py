@@ -13,22 +13,40 @@ from torchvision import transforms
 from PIL import Image
 from utils import seed_everything
 from Dataset import Point_face
-from models import FirstModel, SecondModel, ThirdModel
-
+from models import (
+    FirstModel,
+    SecondModel,
+    ThirdModel,
+    FourthModel,
+    FifthModel,
+    SixthModel,
+    SeventhModel
+)
+# гиперпараметры
 BATCH_SIZE = 64
 NUM_WORKERS = 6
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SEED = 67
-
+# метаданные после мультипроцессинга
 META_300W_TEST = "meta_test_300w.json"
 META_MEPRO_TEST = "meta_test_mepro.json"
 
+# имя модели + путь до лучшего сейва
 MODEL_PATHS = {
-    "ResNet18_MLP": "models/Resnet18_MLP_MSE/best_model.pt",
-    "EfficientNet_B2": "models/Efficent_net_b2_MLP_MSE/epoch_87.pt",
-    "MobileNetV3": "models/MobileNETV3_MLP_MSE/epoch_83.pt"
+    "ResNet18_MLP_MSE": "models/Resnet18_MLP_MSE/best_model.pt",
+    "ResNet18_smoothL1_avgpool": "models/Resnet18_smoothL1_avgpool/best_model.pt",
+    "ResNet18_smoothL1_nopool": "models/Resnet18_smoothL1_nopool/best_model.pt",
+    "ResNet18_GraphLaplacian": "models/Resnet18_GraphLaplacian_avgpool/best_model.pt",
+    "EfficientNet_B2_MSE": "models/Efficent_net_b2_MLP_MSE/epoch_99.pt",
+    "EfficientNet_B2_GraphLaplacian": "models/EfficientNet_B2_GraphLaplacian_avgpool/best_model.pt",
+    "EfficientNet_B3_GraphLaplacian_dif_alpha": "models/EfficientNet_B3_GraphLaplacian+smoothL1_trying_fit_alpha_avgpool/best_model.pt",
+    "EfficientNet_B3_GraphLaplacian_smoothL1": "models/EfficientNet_B3_GraphLaplacian+smoothL1_avgpool/best_model.pt",
+    "MobileNetV3_MSE": "models/MobileNETV3_MLP_MSE/epoch_83.pt",
+    "MobileViT_S_MSE": "models/Mobilevit_s_MSE_/best_model.pt",
+    "ConvNeXt_Tiny_MSE": "models/ConvNeXt_tiny_MSE_avgpool/best_model.pt",
+    "ConvNeXt_Tiny_GraphLaplacian": "models/ConvNeXt_tiny_GraphLaplacian_avgpool/best_model.pt",
 }
-
+# путь до установленной модели для библиотеки dlib
 DLIB_PREDICTOR_PATH = "shape_predictor_68_face_landmarks.dat"
 seed_everything(SEED)
 
@@ -45,7 +63,7 @@ def load_trained_model(model_class, weights_path):
 
     return model.to(DEVICE)
 
-
+# получаем предсказания модели для удобного дальнейшего анализа
 @torch.no_grad()
 def get_model_predictions(model, loader, raw_meta):
     model.eval()
@@ -73,7 +91,7 @@ def get_model_predictions(model, loader, raw_meta):
 
     return predictions
 
-
+# предсказания модели dlib
 def get_dlib_predictions(raw_meta):
     print("Запуск детектора особых точек DLIB...")
     predictor = dlib.shape_predictor(DLIB_PREDICTOR_PATH)
@@ -90,8 +108,7 @@ def get_dlib_predictions(raw_meta):
 
         predictions[key] = pts
     return predictions
-
-
+# считаем ошибку
 def compute_ced_errors(predicted_points, raw_meta):
     errors = []
     for key, pred_pts in predicted_points.items():
@@ -104,7 +121,7 @@ def compute_ced_errors(predicted_points, raw_meta):
 
     return np.sort(errors)
 
-
+# считаем auc с учетом того что отсекаем на 0.08
 def compute_ced_auc(sorted_errors, max_thr=0.08, step=0.0005):
     proportions = np.arange(sorted_errors.shape[0], dtype=np.float32) / sorted_errors.shape[0]
     auc = 0.0
@@ -114,19 +131,12 @@ def compute_ced_auc(sorted_errors, max_thr=0.08, step=0.0005):
         auc += proportions[first_gt_idx] * step
     return auc / max_thr
 
-
+# создает полотно с 16 изображениями
 def save_qualitative_canvas(all_methods_preds, raw_meta):
     print("Генерация полотен визуализации...")
     all_keys = list(raw_meta.keys())
     random_keys = random.sample(all_keys, min(16, len(all_keys)))
 
-    colors = {
-        "GT": "lime",
-        "ResNet18_MLP": "red",
-        "EfficientNet_B2": "blue",
-        "MobileNetV3": "yellow",
-        "DLIB": "magenta"
-    }
     for method_name, preds_dict in all_methods_preds.items():
         fig, axes = plt.subplots(4, 4, figsize=(20, 20), dpi=120)
         axes = axes.flatten()
@@ -141,11 +151,11 @@ def save_qualitative_canvas(all_methods_preds, raw_meta):
             ax = axes[idx]
             ax.imshow(img_crop)
             gt = np.array(meta["landmarks"], dtype=np.float32)
-            ax.scatter(gt[:, 0] - shift_x, gt[:, 1] - shift_y, color=colors["GT"], s=12,
+            ax.scatter(gt[:, 0] - shift_x, gt[:, 1] - shift_y, s=12,
                        label="Ground Truth" if idx == 0 else "")
             if key in preds_dict:
                 pts = preds_dict[key]
-                ax.scatter(pts[:, 0] - shift_x, pts[:, 1] - shift_y, color=colors[method_name], s=10,
+                ax.scatter(pts[:, 0] - shift_x, pts[:, 1] - shift_y,  s=10,
                            label=f"Pred: {method_name}" if idx == 0 else "")
 
             ax.set_title(f"ID: {os.path.basename(meta['image_path'])}", fontsize=10)
@@ -158,22 +168,31 @@ def save_qualitative_canvas(all_methods_preds, raw_meta):
         plt.close()
 
 
-
+# проверка на датасете dlib Обучен на библиотеке 300w но тем не менее он все равно будет на графике чисто для наглядности
 def evaluate_dataset(meta_path, dataset_name, include_dlib=False):
     print(f"\n================ Оцениваем датасет: {dataset_name} ================")
     with open(meta_path, 'r') as f:
         raw_meta = json.load(f)
 
     test_dataset = Point_face(meta_path, transform=val_transform)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS,
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS,persistent_workers=True,
                              pin_memory=True)
 
     all_dataset_preds = {}
 
     model_classes = {
-        "ResNet18_MLP": FirstModel,
-        "EfficientNet_B2": SecondModel,
-        "MobileNetV3": ThirdModel
+        "ResNet18_MLP_MSE": FirstModel,
+        "ResNet18_smoothL1_avgpool": FirstModel,
+        "ResNet18_GraphLaplacian": FirstModel,
+        "ResNet18_smoothL1_nopool": FourthModel,
+        "EfficientNet_B2_MSE": SecondModel,
+        "EfficientNet_B2_GraphLaplacian": SecondModel,
+        "EfficientNet_B3_GraphLaplacian_smoothL1": SeventhModel,
+        "EfficientNet_B3_GraphLaplacian_dif_alpha": SeventhModel,
+        "MobileNetV3_MSE": ThirdModel,
+        "MobileViT_S_MSE": SixthModel,
+        "ConvNeXt_Tiny_MSE": FifthModel,
+        "ConvNeXt_Tiny_GraphLaplacian": FifthModel,
     }
 
     for model_name, model_class in model_classes.items():
@@ -223,7 +242,7 @@ def main():
 
     _ = evaluate_dataset(META_300W_TEST, "300W", include_dlib=False)
     mepro_preds, mepro_meta = evaluate_dataset(META_MEPRO_TEST, "Menpo", include_dlib=True)
-    save_qualitative_canvas(mepro_preds, mepro_meta, output_path="visual_canvas_menpo.png")
+    save_qualitative_canvas(mepro_preds, mepro_meta)
 
 
 if __name__ == "__main__":

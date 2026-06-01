@@ -12,6 +12,8 @@ from torchvision.models import vit_b_16,ViT_B_16_Weights
 from torchvision import transforms
 import torch.nn.functional as F
 
+# В этой части кода находятся базовые функции которые качуют из проекта в проект, ничего особо интересного нету, train,val,save,load,seed
+
 def landmark_error(pred, target):
     pred = pred.view(-1, 68, 2)
     target = target.view(-1, 68, 2)
