@@ -19,7 +19,7 @@ seed_everything(67)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE=64
-LR=5e-4
+LR=1e-4
 NUM_WORKER=6
 NUM_EPOCH=160
 WEIGHT_DECAY=1e-4
@@ -187,17 +187,42 @@ if __name__=="__main__":
     val_loader=DataLoader(dataset_val,batch_size=BATCH_SIZE,shuffle=True,num_workers=NUM_WORKER,persistent_workers=True,pin_memory=False)
     path = "runs"
     mod_path = "models"
-    critrion=GraphLaplacianLoss(base_loss=nn.SmoothL1Loss(),alpha=0.07).to(DEVICE)
 
 
     if not os.path.exists(path):
         os.makedirs(path)
     if not os.path.exists(mod_path):
         os.makedirs(mod_path)
-    #train_model(model=FirstModel,train_loader=train_loader,val_loader=val_loader,criterion=critrion,model_name="Resnet18_GraphLaplacian_avgpool")
-    #train_model(model=FifthModel,train_loader=train_loader,val_loader=val_loader,criterion=critrion,model_name="ConvNeXt_tiny_GraphLaplacian_avgpool")
-    #train_model(model=SecondModel,train_loader=train_loader,val_loader=val_loader,criterion=critrion,model_name="EfficientNet_B2_GraphLaplacian_avgpool")
-    train_model(model=SeventhModel,train_loader=train_loader,val_loader=val_loader,criterion=critrion,model_name="EfficientNet_B3_GraphLaplacian+smoothL1_trying_fit_alpha_avgpool")
+    # запускает обучение всех моделей которые представлены в отчете, проще и быстрее скачать то что обучил я с яндекс диска
+
+    train_model(model=FifthModel, train_loader=train_loader, val_loader=val_loader,
+                criterion=nn.MSELoss().to(DEVICE),
+                model_name="ConvNeXt_tiny_MSE_avgpool")
+    train_model(model=SecondModel, train_loader=train_loader, val_loader=val_loader,
+                criterion=nn.MSELoss().to(DEVICE),
+                model_name="Efficent_net_b2_MLP_MSE")
+    train_model(model=ThirdModel, train_loader=train_loader, val_loader=val_loader,
+                criterion=nn.MSELoss().to(DEVICE),
+                model_name="MobileNETV3_MLP_MSE")
+    train_model(model=SixthModel, train_loader=train_loader, val_loader=val_loader,
+                criterion=nn.MSELoss().to(DEVICE),
+                model_name="Mobilevit_s_MSE_")
+    train_model(model=FirstModel, train_loader=train_loader, val_loader=val_loader,
+                criterion=nn.MSELoss().to(DEVICE),
+                model_name="Resnet18_MLP_MSE")
+    train_model(model=FirstModel, train_loader=train_loader, val_loader=val_loader,
+                criterion=nn.MSELoss().to(DEVICE),
+                model_name="Resnet18_smoothL1_avgpool")
+    train_model(model=FourthModel, train_loader=train_loader, val_loader=val_loader,
+                criterion=nn.MSELoss().to(DEVICE),
+                model_name="Resnet18_smoothL1_nopool")
+
+    train_model(model=FirstModel,train_loader=train_loader,val_loader=val_loader,criterion=GraphLaplacianLoss(base_loss=nn.MSELoss(),alpha=0.2).to(DEVICE),model_name="Resnet18_GraphLaplacian_avgpool")
+    train_model(model=FifthModel,train_loader=train_loader,val_loader=val_loader,criterion=GraphLaplacianLoss(base_loss=nn.MSELoss(),alpha=0.2).to(DEVICE),model_name="ConvNeXt_tiny_GraphLaplacian_avgpool")
+    train_model(model=SecondModel,train_loader=train_loader,val_loader=val_loader,criterion=GraphLaplacianLoss(base_loss=nn.MSELoss(),alpha=0.2).to(DEVICE),model_name="EfficientNet_B2_GraphLaplacian_avgpool")
+    train_model(model=SeventhModel, train_loader=train_loader, val_loader=val_loader, criterion=GraphLaplacianLoss(base_loss=nn.SmoothL1Loss(),alpha=0.2).to(DEVICE),model_name="EfficientNet_B3_GraphLaplacian+smoothL1_avgpool")#alpha=0.2
+    LR=5e-4
+    train_model(model=SeventhModel,train_loader=train_loader,val_loader=val_loader,criterion=GraphLaplacianLoss(base_loss=nn.SmoothL1Loss(),alpha=0.07).to(DEVICE),model_name="EfficientNet_B3_GraphLaplacian+smoothL1_trying_fit_alpha_avgpool")
 
     # #RESNET18 backbone +MLP
     # print("RESNET18 backbone +MLP+Smooth_L1")

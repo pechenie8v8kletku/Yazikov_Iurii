@@ -13,7 +13,7 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 Затем необходимо скачать файл модели DLIB для предсказания точек
 Структура
 project/
-
+├── shape_predictor_68_face_landmarks.dat  # Модель DLIB для предсказания точек
 ├── utils.py               # Утилитарные функции для обучения
 
 ├── Dataset.py               # Класс датасета
